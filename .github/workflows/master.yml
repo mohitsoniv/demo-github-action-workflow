@@ -8,7 +8,7 @@ on:
 
 jobs:
   production-deploy:
-    if: startsWith(github.ref, 'refs/heads/feature/') || github.ref == 'refs/heads/main'
+    if: startsWith(github.ref, 'refs/heads/feature/') || github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
 
     steps:
