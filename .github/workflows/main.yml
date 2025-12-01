@@ -3,7 +3,7 @@ name: Conditional Workflow Execution
 on:
   push:
     branches:
-      - main
+      - master
       - feature/*
 
 jobs:
