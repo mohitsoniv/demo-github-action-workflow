@@ -1,0 +1,42 @@
+name: Java CI - Trigger Jenkins Deployment
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-and-trigger:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Build application
+        run: mvn clean package
+
+      - name: Run unit tests
+        run: mvn test
+
+      - name: Upload WAR artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: java-war
+          path: target/*.war
+
+      - name: Trigger Jenkins Job
+        env:
+          JENKINS_URL: ${{ secrets.JENKINS_URL }}
+          JENKINS_USER: ${{ secrets.JENKINS_USER }}
+          JENKINS_TOKEN: ${{ secrets.JENKINS_API_TOKEN }}
+        run: |
+          curl -X POST "$JENKINS_URL/job/tomcat-deploy/build" \
+          --user "$JENKINS_USER:$JENKINS_TOKEN"
