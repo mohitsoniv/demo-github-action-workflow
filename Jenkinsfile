@@ -5,15 +5,14 @@ pipeline {
         APP_NAME = "insured-assurance"
         TOMCAT_HOME = "/opt/tomcat"
         BACKUP_DIR = "/opt/tomcat/backup"
-        HEALTH_URL = "http://localhost:8080/insured-assurance/index.jsp"
+        HEALTH_URL = "http://localhost:8080/insured-assurance"
     }
 
     stages {
 
         stage('Checkout') {
             steps {
-                git branch: 'master',
-                    url: 'https://github.com/mohitsoniv/demo-github-action-workflow.git'
+                checkout scm
             }
         }
 
@@ -64,8 +63,17 @@ pipeline {
                 echo "Waiting for app to start..."
                 sleep 20
 
-                echo "Running health check..."
-                curl -f $HEALTH_URL
+                echo "Checking health..."
+                STATUS=$(curl -o /dev/null -s -w "%{http_code}" $HEALTH_URL)
+
+                echo "HTTP Status: $STATUS"
+
+                if [ "$STATUS" -ge 200 ] && [ "$STATUS" -le 403 ]; then
+                    echo "Application is UP"
+                else
+                    echo "Application DOWN"
+                    exit 1
+                fi
                 '''
             }
         }
@@ -92,7 +100,7 @@ pipeline {
                 sudo cp $LAST_BACKUP \
                 $TOMCAT_HOME/webapps/$APP_NAME.war
             else
-                echo "No backup found! Manual recovery required."
+                echo "No backup found!"
                 exit 1
             fi
 
