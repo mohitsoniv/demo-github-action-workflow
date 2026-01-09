@@ -1,22 +1,7 @@
 pipeline {
     agent any
 
-    tools {
-        jdk 'jdk-21'
-        maven 'maven-3'
-    }
-
-    environment {
-        TOMCAT_HOME = "/opt/tomcat"
-        APP_NAME = "insured-assurance"
-    }
-
     stages {
-        stage('Verify Java') {
-            steps {
-                sh 'java -version'
-            }
-        }
 
         stage('Build') {
             steps {
@@ -27,10 +12,17 @@ pipeline {
         stage('Deploy to Tomcat') {
             steps {
                 sh '''
-                $TOMCAT_HOME/bin/shutdown.sh || true
-                rm -rf $TOMCAT_HOME/webapps/$APP_NAME
-                cp target/$APP_NAME.war $TOMCAT_HOME/webapps/
-                $TOMCAT_HOME/bin/startup.sh
+                echo "Stopping Tomcat..."
+                sudo /opt/tomcat/bin/shutdown.sh || true
+
+                echo "Removing old app..."
+                sudo rm -rf /opt/tomcat/webapps/insured-assurance
+
+                echo "Deploying new WAR..."
+                sudo cp target/insured-assurance.war /opt/tomcat/webapps/
+
+                echo "Starting Tomcat..."
+                sudo /opt/tomcat/bin/startup.sh
                 '''
             }
         }
