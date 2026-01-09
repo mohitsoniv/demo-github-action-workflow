@@ -24,6 +24,13 @@ jobs:
         run: mvn clean package
 
       - name: Trigger Jenkins (master only)
-        if: github.ref == 'refs/heads/main'
+        # Use 'master' if that is your primary branch name
+        if: github.ref == 'refs/heads/master'
+        env:
+          # Mapping secrets to env vars prevents syntax errors in the curl string
+          JENKINS_URL: ${{ secrets.JENKINS_URL }}
+          JENKINS_USER: ${{ secrets.JENKINS_USER }}
+          JENKINS_TOKEN: ${{ secrets.JENKINS_API_TOKEN }}
         run: |
-          curl -X POST           "${{ JENKINS_URL }}/job/insured-assurance-deploy/build"           --user "${{ JENKINS_USER }}:${{ JENKINS_API_TOKEN }}"
+          curl -X POST "http://$JENKINS_URL/job/insured-assurance-deploy/build" \
+          --user "$JENKINS_USER:$JENKINS_TOKEN"
