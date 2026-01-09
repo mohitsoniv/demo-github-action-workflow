@@ -1,4 +1,4 @@
-name: Java CI - Trigger Jenkins Deployment
+name: Java CI - Trigger Jenkins CD
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - master
 
 jobs:
-  build-and-trigger:
+  ci-cd:
     runs-on: ubuntu-latest
 
     steps:
@@ -14,7 +14,7 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      - name: Set up Java 21
+      - name: Setup Java 21
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -32,11 +32,13 @@ jobs:
           name: java-war
           path: target/*.war
 
-      - name: Trigger Jenkins Job
+      - name: Trigger Jenkins Deployment
         env:
           JENKINS_URL: ${{ secrets.JENKINS_URL }}
           JENKINS_USER: ${{ secrets.JENKINS_USER }}
           JENKINS_TOKEN: ${{ secrets.JENKINS_API_TOKEN }}
+          JENKINS_TRIGGER_TOKEN: ${{ secrets.JENKINS_TRIGGER_TOKEN }}
         run: |
-          curl -X POST "$JENKINS_URL/job/tomcat-deploy/build" \
+          curl -X POST \
+          "$JENKINS_URL/job/tomcat-deploy/build?token=$JENKINS_TRIGGER_TOKEN" \
           --user "$JENKINS_USER:$JENKINS_TOKEN"
