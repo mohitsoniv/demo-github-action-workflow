@@ -3,15 +3,17 @@ pipeline {
 
     environment {
         APP_NAME = "insured-assurance"
-        TOMCAT_PATH = "/opt/tomcat/webapps"
-        BACKUP_PATH = "/opt/tomcat/backup"
+        TOMCAT_HOME = "/opt/tomcat"
+        BACKUP_DIR = "/opt/tomcat/backup"
+        HEALTH_URL = "http://localhost:8080/insured-assurance/index.jsp"
     }
 
     stages {
 
         stage('Checkout') {
             steps {
-                checkout scm
+                git branch: 'master',
+                    url: 'https://github.com/mohitsoniv/demo-github-action-workflow.git'
             }
         }
 
@@ -26,13 +28,15 @@ pipeline {
             steps {
                 sh '''
                 echo "Creating backup directory..."
-                sudo mkdir -p $BACKUP_PATH
+                sudo mkdir -p $BACKUP_DIR
 
-                if [ -f "$TOMCAT_PATH/$APP_NAME.war" ]; then
+                if [ -f $TOMCAT_HOME/webapps/$APP_NAME.war ]; then
                     echo "Backing up existing WAR..."
-                    sudo cp $TOMCAT_PATH/$APP_NAME.war $BACKUP_PATH/$APP_NAME-$(date +%F-%H%M%S).war
+                    TIMESTAMP=$(date +%F-%H%M%S)
+                    sudo cp $TOMCAT_HOME/webapps/$APP_NAME.war \
+                    $BACKUP_DIR/$APP_NAME-$TIMESTAMP.war
                 else
-                    echo "No existing WAR found"
+                    echo "No existing WAR found. Skipping backup."
                 fi
                 '''
             }
@@ -42,13 +46,14 @@ pipeline {
             steps {
                 sh '''
                 echo "Stopping Tomcat..."
-                sudo /opt/tomcat/bin/shutdown.sh || true
+                sudo $TOMCAT_HOME/bin/shutdown.sh || true
+                sleep 5
 
                 echo "Deploying new WAR..."
-                sudo cp target/$APP_NAME.war $TOMCAT_PATH/
+                sudo cp target/$APP_NAME.war $TOMCAT_HOME/webapps/
 
                 echo "Starting Tomcat..."
-                sudo /opt/tomcat/bin/startup.sh
+                sudo $TOMCAT_HOME/bin/startup.sh
                 '''
             }
         }
@@ -56,10 +61,11 @@ pipeline {
         stage('Health Check') {
             steps {
                 sh '''
-                echo "Checking application health..."
-                sleep 15
+                echo "Waiting for app to start..."
+                sleep 20
 
-                curl -f http://localhost:8080/$APP_NAME || exit 1
+                echo "Running health check..."
+                curl -f $HEALTH_URL
                 '''
             }
         }
@@ -67,29 +73,32 @@ pipeline {
 
     post {
 
+        success {
+            echo "Deployment successful 🎉"
+        }
+
         failure {
             echo "Deployment failed. Rolling back..."
 
             sh '''
             echo "Stopping Tomcat..."
-            sudo /opt/tomcat/bin/shutdown.sh || true
+            sudo $TOMCAT_HOME/bin/shutdown.sh || true
+            sleep 5
 
-            LAST_BACKUP=$(ls -t $BACKUP_PATH/$APP_NAME-*.war | head -1)
+            LAST_BACKUP=$(ls -t $BACKUP_DIR/$APP_NAME-*.war | head -1)
 
             if [ -f "$LAST_BACKUP" ]; then
                 echo "Restoring backup: $LAST_BACKUP"
-                sudo cp $LAST_BACKUP $TOMCAT_PATH/$APP_NAME.war
+                sudo cp $LAST_BACKUP \
+                $TOMCAT_HOME/webapps/$APP_NAME.war
             else
-                echo "No backup found. Rollback skipped!"
+                echo "No backup found! Manual recovery required."
+                exit 1
             fi
 
             echo "Starting Tomcat..."
-            sudo /opt/tomcat/bin/startup.sh
+            sudo $TOMCAT_HOME/bin/startup.sh
             '''
-        }
-
-        success {
-            echo "Deployment successful 🎉"
         }
     }
 }
